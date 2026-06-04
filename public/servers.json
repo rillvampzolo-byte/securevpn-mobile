@@ -1,0 +1,16 @@
+{
+  "servers": [
+    {
+      "id": "de-1",
+      "name": "Germany #1",
+      "country": "DE",
+      "config": "socks5://de1.securevpn.com:443"
+    },
+    {
+      "id": "nl-1",
+      "name": "Netherlands #1",
+      "country": "NL",
+      "config": "socks5://nl1.securevpn.com:443"
+    }
+  ]
+}

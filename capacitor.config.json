@@ -1,0 +1,11 @@
+{
+  "appId": "com.securevpn.app",
+  "appName": "SecureVPN",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}
