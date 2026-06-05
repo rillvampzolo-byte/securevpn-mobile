@@ -42,12 +42,6 @@ const STORAGE_KEYS = {
     DNS: 'securevpn_dns',
 };
 
-const DNS_VALUES: Record<string, string> = {
-    cloudflare: '1.1.1.1',
-    google: '8.8.8.8',
-    adguard: '94.140.14.14',
-};
-
 // ============================================
 // СЕРВЕРЫ
 // ============================================
@@ -70,16 +64,21 @@ async function loadServers() {
 
 function renderQuickServers() {
     if (servers.length === 0) {
-        quickServersList.innerHTML = '<p style="color: #9CA3AF; text-align: center; width: 100%;">No servers available</p>';
+        quickServersList.innerHTML = '<p style="color:#9CA3AF;text-align:center;width:100%;">No servers available</p>';
         return;
     }
 
-    quickServersList.innerHTML = servers.map(s =>
-        '<button class="quick-server-btn ' + (selectedServer?.id === s.id ? 'selected' : '') + '" data-server-id="' + s.id + '">' +
-            '<span class="quick-server-flag">' + (flags[s.country] || '🌍') + '</span>' +
-            '<span class="quick-server-name">' + escapeHtml(s.name) + '</span>' +
-        '</button>'
-    ).join('');
+    let html = '';
+    for (const s of servers) {
+        const sel = selectedServer?.id === s.id ? ' selected' : '';
+        const flag = flags[s.country] || '🌍';
+        const name = escapeHtml(s.name);
+        html += '<button class="quick-server-btn' + sel + '" data-server-id="' + s.id + '">' +
+            '<span class="quick-server-flag">' + flag + '</span>' +
+            '<span class="quick-server-name">' + name + '</span>' +
+        '</button>';
+    }
+    quickServersList.innerHTML = html;
 
     quickServersList.querySelectorAll('.quick-server-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -92,7 +91,7 @@ function renderQuickServers() {
             if (selectedServer) {
                 currentServerEl.textContent = '📍 ' + selectedServer.name;
             }
-            showNotification('Server changed to ' + selectedServer?.name, 'info');
+            showNotification('Server: ' + selectedServer?.name, 'info');
         });
     });
 }
@@ -193,21 +192,17 @@ function updateUI(status: string) {
     }
 }
 
-// ============================================
-// УВЕДОМЛЕНИЯ
-// ============================================
-
 function showNotification(message: string, type: string = 'info') {
     const old = document.querySelector('.notification');
     if (old) old.remove();
     const n = document.createElement('div');
     n.className = 'notification';
     n.textContent = message;
-    n.style.cssText =
-        'position: fixed; top: 16px; right: 16px; left: 16px; padding: 0.8rem 1rem;' +
-        'background: rgba(20,20,22,0.9); backdrop-filter: blur(10px);' +
-        'border: 1px solid ' + (type === 'error' ? '#EF4444' : '#00FF88') + ';' +
-        'border-radius: 0.7rem; color: white; z-index: 9999; font-size: 0.8rem; text-align: center;';
+    const borderColor = type === 'error' ? '#EF4444' : '#00FF88';
+    n.style.cssText = 'position:fixed;top:16px;right:16px;left:16px;padding:0.8rem 1rem;' +
+        'background:rgba(20,20,22,0.9);backdrop-filter:blur(10px);' +
+        'border:1px solid ' + borderColor + ';' +
+        'border-radius:0.7rem;color:white;z-index:9999;font-size:0.8rem;text-align:center;';
     document.body.appendChild(n);
     setTimeout(() => {
         n.style.opacity = '0';
@@ -215,10 +210,6 @@ function showNotification(message: string, type: string = 'info') {
         setTimeout(() => n.remove(), 300);
     }, 2500);
 }
-
-// ============================================
-// УТИЛИТЫ
-// ============================================
 
 function escapeHtml(text: string): string {
     const div = document.createElement('div');
@@ -242,15 +233,6 @@ function saveSettings(): void {
     localStorage.setItem(STORAGE_KEYS.DNS, selectDns.value);
 }
 
-function getSettings() {
-    return {
-        autoconnect: toggleAutoconnect.checked,
-        killswitch: toggleKillswitch.checked,
-        dns: selectDns.value,
-        dnsIp: DNS_VALUES[selectDns.value] || '1.1.1.1',
-    };
-}
-
 function applySettings(): void {
     saveSettings();
 }
@@ -270,25 +252,22 @@ function closeSettings(): void {
 settingsBtn.addEventListener('click', openSettings);
 settingsCloseBtn.addEventListener('click', closeSettings);
 settingsOverlay.addEventListener('click', closeSettings);
-
 toggleAutoconnect.addEventListener('change', applySettings);
 toggleKillswitch.addEventListener('change', applySettings);
 selectDns.addEventListener('change', applySettings);
 
-// FAQ
 faqItems.forEach((item) => {
-    const questionBtn = item.querySelector('.faq-question') as HTMLButtonElement;
-    questionBtn.addEventListener('click', () => {
+    const q = item.querySelector('.faq-question') as HTMLButtonElement;
+    q.addEventListener('click', () => {
         const isOpen = item.classList.contains('open');
-        faqItems.forEach((i) => i.classList.remove('open'));
+        faqItems.forEach(i => i.classList.remove('open'));
         if (!isOpen) item.classList.add('open');
     });
 });
 
-// Обратная связь
 feedbackSendBtn.addEventListener('click', async () => {
-    const message = feedbackTextarea.value.trim();
-    if (!message) {
+    const msg = feedbackTextarea.value.trim();
+    if (!msg) {
         feedbackStatus.textContent = 'Введите сообщение';
         feedbackStatus.className = 'feedback-status error';
         return;
@@ -296,9 +275,9 @@ feedbackSendBtn.addEventListener('click', async () => {
     feedbackSendBtn.disabled = true;
     feedbackSendBtn.textContent = 'Отправка...';
     try {
-        const feedbacks = JSON.parse(localStorage.getItem('securevpn_feedbacks') || '[]');
-        feedbacks.push({ message, date: new Date().toISOString() });
-        localStorage.setItem('securevpn_feedbacks', JSON.stringify(feedbacks));
+        const fb = JSON.parse(localStorage.getItem('securevpn_feedbacks') || '[]');
+        fb.push({ message: msg, date: new Date().toISOString() });
+        localStorage.setItem('securevpn_feedbacks', JSON.stringify(fb));
         await new Promise(r => setTimeout(r, 500));
         feedbackTextarea.value = '';
         feedbackStatus.textContent = '✓ Отправлено!';
