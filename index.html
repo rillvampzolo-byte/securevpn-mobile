@@ -1,166 +1,118 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-    <meta name="theme-color" content="#0A0A0A">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="SecureVPN">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon-192.png">
-    <title>SecureVPN</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <div class="app-container">
-        <div class="bg-decoration">
-            <div class="glow-orb orb-1"></div>
-            <div class="glow-orb orb-2"></div>
-        </div>
+<script>
+    var flags = { 'NL': '🇳🇱', 'DE': '🇩🇪', 'US': '🇺🇸', 'GB': '🇬🇧', 'FR': '🇫🇷', 'JP': '🇯🇵', 'SG': '🇸🇬', 'CA': '🇨🇦', 'RU': '🇷🇺', 'UA': '🇺🇦', 'PL': '🇵🇱' };
+    var servers = [
+        { id: "nl-1", name: "Netherlands #1", country: "NL", config: "vless://a19b0581-6edf-407d-9dc9-3807d4f4425b@62.60.148.122:443?encryption=none&security=reality&flow=xtls-rprx-vision&type=tcp&sni=www.microsoft.com&pbk=h7TUJlqZxLr-vWc7jZZ05Sz6ITNqdRTrWeZrPzijtXk" }
+    ];
 
-        <div class="main-content">
-            <header class="header">
-                <div class="logo">
-                    <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-                        <path d="M16 2L2 9V23L16 30L30 23V9L16 2Z" stroke="url(#logo-gradient)" stroke-width="2"/>
-                        <circle cx="16" cy="16" r="4" fill="url(#logo-gradient)"/>
-                        <defs>
-                            <linearGradient id="logo-gradient" x1="0" y1="0" x2="32" y2="32">
-                                <stop offset="0%" stop-color="#6366F1"/>
-                                <stop offset="100%" stop-color="#00FF88"/>
-                            </linearGradient>
-                        </defs>
-                    </svg>
-                    <span class="logo-text">SecureVPN</span>
-                </div>
-                <button id="settings-btn" class="settings-icon-btn" title="Настройки">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                    </svg>
-                </button>
-            </header>
+    var currentStatus = 'Disconnected';
+    var isConnecting = false;
+    var selectedServer = servers[0];
 
-            <!-- НОВЫЙ КРУГ СТАТУСА -->
-            <section class="status-section">
-                <div class="status-card glass-card">
-                    <div id="statusIndicator" class="status-indicator disconnected">
-                        <div class="vpn-ring">
-                            <svg class="vpn-ring-svg" viewBox="0 0 140 140">
-                                <!-- Фоновый круг -->
-                                <circle cx="70" cy="70" r="58" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="4"/>
-                                <!-- Анимированная дуга -->
-                                <circle id="statusArc" cx="70" cy="70" r="58" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="4" stroke-linecap="round" stroke-dasharray="365" stroke-dashoffset="365" transform="rotate(-90 70 70)" style="transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.5s ease;"/>
-                            </svg>
-                            <!-- Центральная точка -->
-                            <div id="statusDot" class="vpn-dot"></div>
-                        </div>
-                        <h2 id="statusText" class="status-text">Disconnected</h2>
-                        <p id="statusDetail" class="status-detail">Your connection is not protected</p>
-                        <p id="currentServer" class="current-server"></p>
-                    </div>
-                </div>
-            </section>
+    var connectBtn = document.getElementById('connectBtn');
+    var btnText = document.getElementById('btnText');
+    var statusIndicator = document.getElementById('statusIndicator');
+    var statusText = document.getElementById('statusText');
+    var statusDetail = document.getElementById('statusDetail');
+    var currentServerEl = document.getElementById('currentServer');
+    var quickServersList = document.getElementById('quickServersList');
 
-            <section class="action-section">
-                <button id="connectBtn" class="connect-btn glass-btn">
-                    <span class="btn-content">
-                        <svg id="btnIcon" class="btn-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-                        </svg>
-                        <span id="btnText">Connect</span>
-                    </span>
-                    <div class="btn-glow"></div>
-                </button>
-            </section>
-
-            <h3 class="servers-title">Select Server</h3>
-            <div class="servers-grid" id="quickServersList"></div>
-        </div>
-
-        <!-- Оверлей -->
-        <div id="settings-overlay" class="settings-overlay"></div>
-
-        <!-- Панель настроек -->
-        <div id="settings-panel" class="settings-panel">
-            <div class="settings-header">
-                <h2>Настройки</h2>
-                <button id="settings-close-btn" class="settings-close-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-            </div>
-            <div class="settings-body">
-                <div class="setting-item">
-                    <div class="setting-info">
-                        <span class="setting-label">Автоподключение</span>
-                        <span class="setting-desc">Подключаться автоматически при запуске</span>
-                    </div>
-                    <label class="toggle">
-                        <input type="checkbox" id="setting-autoconnect">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="setting-item">
-                    <div class="setting-info">
-                        <span class="setting-label">Kill Switch</span>
-                        <span class="setting-desc">Блокировать интернет при обрыве VPN</span>
-                    </div>
-                    <label class="toggle">
-                        <input type="checkbox" id="setting-killswitch">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="setting-item">
-                    <div class="setting-info">
-                        <span class="setting-label">DNS-сервер</span>
-                        <span class="setting-desc">Выберите DNS для разрешения имён</span>
-                    </div>
-                    <select id="setting-dns" class="setting-select">
-                        <option value="cloudflare">Cloudflare (1.1.1.1)</option>
-                        <option value="google">Google (8.8.8.8)</option>
-                        <option value="adguard">AdGuard (блокировка рекламы)</option>
-                    </select>
-                </div>
-                <div class="settings-divider"></div>
-                <div class="setting-item">
-                    <div class="setting-info">
-                        <span class="setting-label">Поддержка</span>
-                        <span class="setting-desc">Есть вопросы или проблема?</span>
-                    </div>
-                </div>
-                <div class="faq-section">
-                    <div class="faq-item">
-                        <button class="faq-question"><span>Не работает подключение</span><svg class="faq-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
-                        <div class="faq-answer"><p>Проверьте подключение к интернету и попробуйте выбрать другой сервер. Если проблема сохраняется, отправьте сообщение в поддержку.</p></div>
-                    </div>
-                    <div class="faq-item">
-                        <button class="faq-question"><span>Медленная скорость</span><svg class="faq-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
-                        <div class="faq-answer"><p>Выберите сервер, который географически ближе к вам. Также попробуйте переключить DNS на Cloudflare.</p></div>
-                    </div>
-                    <div class="faq-item">
-                        <button class="faq-question"><span>Как сменить сервер?</span><svg class="faq-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
-                        <div class="faq-answer"><p>Нажмите на карточку нужного сервера на главном экране, затем нажмите "Подключиться".</p></div>
-                    </div>
-                </div>
-                <div class="feedback-section">
-                    <textarea id="feedback-text" class="feedback-textarea" placeholder="Опишите проблему или предложение..." rows="3"></textarea>
-                    <button id="feedback-send-btn" class="feedback-send-btn">Отправить</button>
-                    <span id="feedback-status" class="feedback-status"></span>
-                </div>
-                <div class="settings-info-text"><span>SecureVPN v1.0.0</span></div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js');
+    function renderServers() {
+        currentServerEl.textContent = '📍 ' + selectedServer.name;
+        var html = '';
+        for (var i = 0; i < servers.length; i++) {
+            var s = servers[i];
+            var sel = (selectedServer.id === s.id) ? ' selected' : '';
+            html += '<button class="quick-server-btn' + sel + '" data-id="' + s.id + '">' +
+                '<span class="quick-server-flag">' + (flags[s.country] || '🌍') + '</span>' +
+                '<span class="quick-server-name">' + s.name + '</span></button>';
         }
-    </script>
-    <script type="module" src="main.ts"></script>
-</body>
-</html>
+        quickServersList.innerHTML = html;
+        var btns = quickServersList.querySelectorAll('.quick-server-btn');
+        for (var j = 0; j < btns.length; j++) {
+            btns[j].onclick = function() {
+                var id = this.getAttribute('data-id');
+                for (var k = 0; k < servers.length; k++) {
+                    if (servers[k].id === id) { selectedServer = servers[k]; break; }
+                }
+                renderServers();
+            };
+        }
+    }
+
+    function updateUI(status) {
+        statusIndicator.className = 'status-indicator ' + status.toLowerCase();
+        if (status === 'Connected') {
+            statusText.textContent = 'Connected';
+            statusDetail.textContent = 'Your connection is secure';
+            btnText.textContent = 'Disconnect';
+            connectBtn.className = 'connect-btn glass-btn connected';
+        } else if (status === 'Connecting') {
+            statusText.textContent = 'Connecting...';
+            statusDetail.textContent = 'Press again to cancel';
+            btnText.textContent = 'Cancel';
+            connectBtn.className = 'connect-btn glass-btn connecting';
+        } else if (status === 'Error') {
+            statusText.textContent = 'Error';
+            statusDetail.textContent = 'Connection failed';
+            btnText.textContent = 'Retry';
+            connectBtn.className = 'connect-btn glass-btn error';
+        } else {
+            statusText.textContent = 'Disconnected';
+            statusDetail.textContent = 'Your connection is not protected';
+            btnText.textContent = 'Connect';
+            connectBtn.className = 'connect-btn glass-btn';
+        }
+    }
+
+    // Callback из Java
+    window._vpnCallback = function(status) {
+        if (status === 'connected') {
+            currentStatus = 'Connected';
+            isConnecting = false;
+            updateUI('Connected');
+        } else {
+            currentStatus = 'Error';
+            isConnecting = false;
+            updateUI('Error');
+        }
+    };
+
+    function handleConnect() {
+        if (!selectedServer) return;
+        if (isConnecting) {
+            isConnecting = false;
+            currentStatus = 'Disconnected';
+            updateUI('Disconnected');
+            return;
+        }
+        if (currentStatus === 'Connected') {
+            if (window.VpnBridge) window.VpnBridge.disconnect();
+            currentStatus = 'Disconnected';
+            updateUI('Disconnected');
+            return;
+        }
+        isConnecting = true;
+        currentStatus = 'Connecting';
+        updateUI('Connecting');
+
+        if (window.VpnBridge) {
+            window.VpnBridge.connect();
+        } else {
+            isConnecting = false;
+            updateUI('Error');
+        }
+    }
+
+    // Настройки
+    var settingsBtn = document.getElementById('settings-btn');
+    var settingsOverlay = document.getElementById('settings-overlay');
+    var settingsPanel = document.getElementById('settings-panel');
+    var settingsCloseBtn = document.getElementById('settings-close-btn');
+    settingsBtn.onclick = function() { settingsPanel.classList.add('active'); settingsOverlay.classList.add('active'); };
+    settingsCloseBtn.onclick = function() { settingsPanel.classList.remove('active'); settingsOverlay.classList.remove('active'); };
+    settingsOverlay.onclick = function() { settingsPanel.classList.remove('active'); settingsOverlay.classList.remove('active'); };
+
+    // Инит
+    renderServers();
+    connectBtn.onclick = handleConnect;
+</script>
