@@ -16,7 +16,7 @@ public class SecureVpnService extends android.net.VpnService {
 
     public int onStartCommand(Intent intent, String flags, int startId) {
         createNotificationChannel();
-        Notification notification = new Notification.Builder(this, CHANNEL_ID)
+        Notification notification = new android.app.Notification.Builder(this, CHANNEL_ID)
                 .setContentTitle("SecureVPN")
                 .setContentText("VPN is running")
                 .setSmallIcon(android.R.drawable.ic_lock_lock)

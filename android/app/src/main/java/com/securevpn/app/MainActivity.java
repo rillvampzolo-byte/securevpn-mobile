@@ -1,60 +1,58 @@
 package com.securevpn.app;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.net.VpnService;
 import android.os.Bundle;
+import android.webkit.JavascriptInterface;
 import com.getcapacitor.BridgeActivity;
-import com.getcapacitor.Plugin;
-import com.getcapacitor.PluginCall;
-import com.getcapacitor.PluginMethod;
-import com.getcapacitor.annotation.CapacitorPlugin;
 
 public class MainActivity extends BridgeActivity {
-    private static final int VPN_REQUEST_CODE = 100;
+
+    private static final int VPN_REQUEST_CODE = 999;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        registerPlugin(VpnPlugin.class);
     }
 
-    @CapacitorPlugin(name = "VpnPlugin")
-    public static class VpnPlugin extends Plugin {
-
-        @PluginMethod
-        public void connect(PluginCall call) {
-            Intent intent = VpnService.prepare(getContext());
-            if (intent != null) {
-                startActivityForResult(call, intent, VPN_REQUEST_CODE);
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == VPN_REQUEST_CODE) {
+            if (resultCode == Activity.RESULT_OK) {
+                Intent intent = new Intent(this, SecureVpnService.class);
+                startService(intent);
+                bridge.getWebView().evaluateJavascript("window._vpnCallback('connected')", null);
             } else {
-                startVpn();
-                call.resolve();
+                bridge.getWebView().evaluateJavascript("window._vpnCallback('denied')", null);
+            }
+        }
+    }
+
+    public class VpnBridge {
+        @JavascriptInterface
+        public void connect() {
+            Intent intent = VpnService.prepare(MainActivity.this);
+            if (intent != null) {
+                startActivityForResult(intent, VPN_REQUEST_CODE);
+            } else {
+                Intent vpnIntent = new Intent(MainActivity.this, SecureVpnService.class);
+                startService(vpnIntent);
+                bridge.getWebView().evaluateJavascript("window._vpnCallback('connected')", null);
             }
         }
 
-        @PluginMethod
-        public void disconnect(PluginCall call) {
-            stopVpn();
-            call.resolve();
+        @JavascriptInterface
+        public void disconnect() {
+            Intent intent = new Intent(MainActivity.this, SecureVpnService.class);
+            stopService(intent);
         }
+    }
 
-        private void startVpn() {
-            Intent intent = new Intent(getContext(), SecureVpnService.class);
-            getContext().startService(intent);
-        }
-
-        private void stopVpn() {
-            Intent intent = new Intent(getContext(), SecureVpnService.class);
-            getContext().stopService(intent);
-        }
-
-        @Override
-        protected void handleOnActivityResult(int requestCode, int resultCode, Intent data) {
-            super.handleOnActivityResult(requestCode, resultCode, data);
-            if (requestCode == VPN_REQUEST_CODE && resultCode == RESULT_OK) {
-                startVpn();
-                getSavedCall().resolve();
-            }
-        }
+    @Override
+    public void onResume() {
+        super.onResume();
+        bridge.getWebView().addJavascriptInterface(new VpnBridge(), "VpnBridge");
     }
 }

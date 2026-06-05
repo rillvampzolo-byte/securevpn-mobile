@@ -4,25 +4,13 @@
       "id": "de-1",
       "name": "Germany #1",
       "country": "DE",
-      "config": "vless://a19b0581-6edf-407d-9dc9-3807d4f4425b@62.60.148.122:443?encryption=none&security=reality&flow=xtls-rprx-vision&type=tcp&sni=www.microsoft.com"
-    },
-    {
-      "id": "fr-1",
-      "name": "France #1",
-      "country": "FR",
-      "config": "vless://a19b0581-6edf-407d-9dc9-3807d4f4425b@62.60.148.122:443?encryption=none&security=reality&flow=xtls-rprx-vision&type=tcp&sni=www.microsoft.com"
-    },
-    {
-      "id": "kz-1",
-      "name": "Kazakhstan #1",
-      "country": "KZ",
-      "config": "vless://a19b0581-6edf-407d-9dc9-3807d4f4425b@62.60.148.122:443?encryption=none&security=reality&flow=xtls-rprx-vision&type=tcp&sni=www.microsoft.com"
+      "config": "vless://a19b0581-6edf-407d-9dc9-3807d4f4425b@62.60.148.122:443?encryption=none&security=reality&flow=xtls-rprx-vision&type=tcp&sni=www.microsoft.com&pbk=h7TUJlqZxLr-vWc7jZZ05Sz6ITNqdRTrWeZrPzijtXk#VPN"
     },
     {
       "id": "nl-1",
       "name": "Netherlands #1",
       "country": "NL",
-      "config": "vless://a19b0581-6edf-407d-9dc9-3807d4f4425b@62.60.148.122:443?encryption=none&security=reality&flow=xtls-rprx-vision&type=tcp&sni=www.microsoft.com"
-    }
+      "config": "vless://a19b0581-6edf-407d-9dc9-3807d4f4425b@62.60.148.122:443?encryption=none&security=reality&flow=xtls-rprx-vision&type=tcp&sni=www.microsoft.com&pbk=h7TUJlqZxLr-vWc7jZZ05Sz6ITNqdRTrWeZrPzijtXk#VPN"
+    },
   ]
 }
