@@ -1,7 +1,3 @@
-// ============================================
-// СОСТОЯНИЕ
-// ============================================
-
 interface Server {
     id: string;
     name: string;
@@ -9,22 +5,19 @@ interface Server {
     config: string;
 }
 
-let currentStatus = 'Disconnected';
-let isConnecting = false;
-let selectedServer: Server | null = null;
-let servers: Server[] = [];
-
-// Флаги стран
 const flags: Record<string, string> = {
     'DE': '🇩🇪', 'US': '🇺🇸', 'NL': '🇳🇱', 'GB': '🇬🇧',
     'FR': '🇫🇷', 'JP': '🇯🇵', 'SG': '🇸🇬', 'CA': '🇨🇦',
     'KZ': '🇰🇿', 'RU': '🇷🇺', 'UA': '🇺🇦', 'PL': '🇵🇱',
 };
 
-// ============================================
-// DOM — ОСНОВНЫЕ ЭЛЕМЕНТЫ
-// ============================================
+// Состояние
+let currentStatus = 'Disconnected';
+let isConnecting = false;
+let selectedServer: Server | null = null;
+let servers: Server[] = [];
 
+// DOM — основные
 const connectBtn = document.getElementById('connectBtn') as HTMLButtonElement;
 const btnText = document.getElementById('btnText')!;
 const statusIndicator = document.getElementById('statusIndicator')!;
@@ -32,30 +25,22 @@ const statusText = document.getElementById('statusText')!;
 const statusDetail = document.getElementById('statusDetail')!;
 const currentServerEl = document.getElementById('currentServer')!;
 const quickServersList = document.getElementById('quickServersList')!;
+const statusArc = document.getElementById('statusArc')!;
 
-// ============================================
-// DOM — НАСТРОЙКИ
-// ============================================
-
+// DOM — настройки
 const settingsBtn = document.getElementById('settings-btn') as HTMLButtonElement;
 const settingsOverlay = document.getElementById('settings-overlay') as HTMLDivElement;
 const settingsPanel = document.getElementById('settings-panel') as HTMLDivElement;
 const settingsCloseBtn = document.getElementById('settings-close-btn') as HTMLButtonElement;
-
 const toggleAutoconnect = document.getElementById('setting-autoconnect') as HTMLInputElement;
 const toggleKillswitch = document.getElementById('setting-killswitch') as HTMLInputElement;
 const selectDns = document.getElementById('setting-dns') as HTMLSelectElement;
-
 const feedbackTextarea = document.getElementById('feedback-text') as HTMLTextAreaElement;
 const feedbackSendBtn = document.getElementById('feedback-send-btn') as HTMLButtonElement;
 const feedbackStatus = document.getElementById('feedback-status') as HTMLSpanElement;
-
 const faqItems = document.querySelectorAll('.faq-item');
 
-// ============================================
-// КОНСТАНТЫ
-// ============================================
-
+// Константы
 const STORAGE_KEYS = {
     AUTO_CONNECT: 'securevpn_autoconnect',
     KILL_SWITCH: 'securevpn_killswitch',
@@ -69,7 +54,7 @@ const DNS_VALUES: Record<string, string> = {
 };
 
 // ============================================
-// ЗАГРУЗКА СЕРВЕРОВ (из локального JSON)
+// ЗАГРУЗКА СЕРВЕРОВ
 // ============================================
 
 async function loadServers() {
@@ -78,7 +63,6 @@ async function loadServers() {
         const data = await response.json();
         servers = data.servers || [];
     } catch (e) {
-        console.error('Failed to load servers:', e);
         servers = [];
     }
 
@@ -105,21 +89,23 @@ function renderQuickServers() {
     quickServersList.querySelectorAll('.quick-server-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const id = (btn as HTMLElement).dataset.serverId!;
+            
             if (currentStatus === 'Connected' || currentStatus === 'Connecting') {
-                showNotification('Disconnect first', 'error');
-                return;
+                disconnectSilent();
             }
+            
             selectedServer = servers.find(s => s.id === id) || null;
             renderQuickServers();
             if (selectedServer) {
                 currentServerEl.textContent = `📍 ${selectedServer.name}`;
             }
+            showNotification(`Server changed to ${selectedServer?.name}`, 'info');
         });
     });
 }
 
 // ============================================
-// ПОДКЛЮЧЕНИЕ / ОТКЛЮЧЕНИЕ (заглушка — пока без SOCKS5)
+// ПОДКЛЮЧЕНИЕ / ОТКЛЮЧЕНИЕ
 // ============================================
 
 async function handleConnect() {
@@ -130,25 +116,41 @@ async function handleConnect() {
 
     if (isConnecting) {
         isConnecting = false;
+        currentStatus = 'Disconnected';
         updateUI('Disconnected');
         return;
     }
 
     if (currentStatus === 'Connected') {
+        try {
+            await (window as any).Capacitor.Plugins.VpnPlugin.disconnect();
+        } catch(e) {}
+        currentStatus = 'Disconnected';
         updateUI('Disconnected');
         return;
     }
 
-    // Заглушка — имитация подключения
     isConnecting = true;
+    currentStatus = 'Connecting';
     updateUI('Connecting');
 
-    setTimeout(() => {
+    try {
+        await (window as any).Capacitor.Plugins.VpnPlugin.connect();
         currentStatus = 'Connected';
         isConnecting = false;
         updateUI('Connected');
         showNotification(`Connected to ${selectedServer!.name}`, 'info');
-    }, 1500);
+    } catch(e) {
+        showNotification('VPN permission denied', 'error');
+        isConnecting = false;
+        updateUI('Error');
+    }
+}
+
+function disconnectSilent() {
+    currentStatus = 'Disconnected';
+    isConnecting = false;
+    updateUI('Disconnected');
 }
 
 // ============================================
@@ -157,6 +159,7 @@ async function handleConnect() {
 
 function updateUI(status: string) {
     statusIndicator.className = `status-indicator ${status.toLowerCase()}`;
+    
     switch (status) {
         case 'Connected':
             statusText.textContent = 'Connected';
@@ -193,20 +196,21 @@ function showNotification(message: string, type: string = 'info') {
     const old = document.querySelector('.notification');
     if (old) old.remove();
     const n = document.createElement('div');
+    n.className = 'notification';
     n.textContent = message;
     n.style.cssText = `
-        position: fixed; top: 20px; right: 20px; padding: 1rem 1.5rem;
-        background: rgba(20,20,22,0.9); backdrop-filter: blur(20px);
+        position: fixed; top: 16px; right: 16px; left: 16px; padding: 0.8rem 1rem;
+        background: rgba(20,20,22,0.9); backdrop-filter: blur(10px);
         border: 1px solid ${type === 'error' ? '#EF4444' : '#00FF88'};
-        border-radius: 0.75rem; color: white; z-index: 9999;
-        font-size: 0.875rem; animation: slideIn 0.3s ease-out;
+        border-radius: 0.7rem; color: white; z-index: 9999;
+        font-size: 0.8rem; text-align: center;
     `;
     document.body.appendChild(n);
     setTimeout(() => {
         n.style.opacity = '0';
         n.style.transition = 'opacity 0.3s';
         setTimeout(() => n.remove(), 300);
-    }, 3000);
+    }, 2500);
 }
 
 // ============================================
@@ -269,12 +273,6 @@ settingsBtn.addEventListener('click', openSettings);
 settingsCloseBtn.addEventListener('click', closeSettings);
 settingsOverlay.addEventListener('click', closeSettings);
 
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && settingsPanel.classList.contains('active')) {
-        closeSettings();
-    }
-});
-
 toggleAutoconnect.addEventListener('change', applySettings);
 toggleKillswitch.addEventListener('change', applySettings);
 selectDns.addEventListener('change', applySettings);
@@ -300,30 +298,19 @@ feedbackSendBtn.addEventListener('click', async () => {
 
     feedbackSendBtn.disabled = true;
     feedbackSendBtn.textContent = 'Отправка...';
-    feedbackStatus.textContent = '';
-    feedbackStatus.className = 'feedback-status';
 
     try {
         const feedbacks = JSON.parse(localStorage.getItem('securevpn_feedbacks') || '[]');
-        feedbacks.push({
-            message,
-            date: new Date().toISOString(),
-            settings: getSettings(),
-        });
+        feedbacks.push({ message, date: new Date().toISOString(), settings: getSettings() });
         localStorage.setItem('securevpn_feedbacks', JSON.stringify(feedbacks));
 
-        await new Promise((resolve) => setTimeout(resolve, 600));
-
+        await new Promise((resolve) => setTimeout(resolve, 500));
         feedbackTextarea.value = '';
-        feedbackStatus.textContent = '✓ Сообщение отправлено!';
+        feedbackStatus.textContent = '✓ Отправлено!';
         feedbackStatus.className = 'feedback-status success';
-
-        setTimeout(() => {
-            feedbackStatus.textContent = '';
-            feedbackStatus.className = 'feedback-status';
-        }, 3000);
+        setTimeout(() => { feedbackStatus.textContent = ''; feedbackStatus.className = 'feedback-status'; }, 3000);
     } catch {
-        feedbackStatus.textContent = 'Ошибка отправки';
+        feedbackStatus.textContent = 'Ошибка';
         feedbackStatus.className = 'feedback-status error';
     } finally {
         feedbackSendBtn.disabled = false;
