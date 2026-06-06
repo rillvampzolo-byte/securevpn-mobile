@@ -3,7 +3,6 @@ package com.securevpn.app;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.Intent;
 import android.net.VpnService;
 import android.os.Build;
@@ -11,115 +10,73 @@ import android.os.ParcelFileDescriptor;
 import android.util.Log;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.InputStream;
 
 public class SecureVpnService extends VpnService {
-    private static final String TAG = "SecureVpnService";
-    private static final String CHANNEL_ID = "vpn_channel";
-    private ParcelFileDescriptor tunInterface;
-    private Thread vpnThread;
+    private static final String TAG = "SVPN";
+    private ParcelFileDescriptor tun;
+    private Process xrayProcess;
 
-    public int onStartCommand(Intent intent, String flags, int startId) {
-        createNotificationChannel();
-        Notification notification = new Notification.Builder(this, CHANNEL_ID)
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel ch = new NotificationChannel("vpn", "VPN", NotificationManager.IMPORTANCE_LOW);
+            getSystemService(NotificationManager.class).createNotificationChannel(ch);
+        }
+        Notification n = new Notification.Builder(this, "vpn")
                 .setContentTitle("SecureVPN")
-                .setContentText("VPN is running")
+                .setContentText("Connected")
                 .setSmallIcon(android.R.drawable.ic_lock_lock)
                 .build();
-        startForeground(1, notification);
+        startForeground(1, n);
 
-        // Запуск туннеля
-        startVpnTunnel();
-        return START_STICKY;
-    }
-
-    private void startVpnTunnel() {
-        vpnThread = new Thread(() -> {
+        new Thread(() -> {
             try {
-                // Копируем xray из jniLibs в рабочую папку
-                File xrayFile = new File(getFilesDir(), "xray");
-                if (!xrayFile.exists()) {
-                    InputStream in = getResources().getAssets().open("xray");
-                    FileOutputStream out = new FileOutputStream(xrayFile);
-                    byte[] buf = new byte[8192];
-                    int len;
-                    while ((len = in.read(buf)) > 0) out.write(buf, 0, len);
-                    in.close(); out.close();
-                    xrayFile.setExecutable(true);
-                }
-
-                // Создаём конфиг XRay
-                String config = "{\n" +
-                    "  \"inbounds\": [{\n" +
-                    "    \"port\": 10808,\n" +
-                    "    \"protocol\": \"socks\",\n" +
-                    "    \"settings\": { \"udp\": true }\n" +
-                    "  }],\n" +
-                    "  \"outbounds\": [{\n" +
-                    "    \"protocol\": \"vless\",\n" +
-                    "    \"settings\": {\n" +
-                    "      \"vnext\": [{\n" +
-                    "        \"address\": \"62.60.148.122\",\n" +
-                    "        \"port\": 443,\n" +
-                    "        \"users\": [{\n" +
-                    "          \"id\": \"a19b0581-6edf-407d-9dc9-3807d4f4425b\",\n" +
-                    "          \"flow\": \"xtls-rprx-vision\",\n" +
-                    "          \"encryption\": \"none\"\n" +
-                    "        }]\n" +
-                    "      }]\n" +
-                    "    },\n" +
-                    "    \"streamSettings\": {\n" +
-                    "      \"network\": \"tcp\",\n" +
-                    "      \"security\": \"reality\",\n" +
-                    "      \"realitySettings\": {\n" +
-                    "        \"serverName\": \"www.microsoft.com\",\n" +
-                    "        \"publicKey\": \"h7TUJlqZxLr-vWc7jZZ05Sz6ITNqdRTrWeZrPzijtXk\",\n" +
-                    "        \"shortId\": \"\"\n" +
-                    "      }\n" +
-                    "    }\n" +
-                    "  }]\n" +
-                    "}";
+                String xrayPath = getApplicationInfo().nativeLibraryDir + "/libxray.so";
+                String config = "{\"log\":{\"loglevel\":\"warning\"},\"inbounds\":[{\"port\":10808,\"protocol\":\"socks\",\"settings\":{\"udp\":true}}],\"outbounds\":[{\"protocol\":\"vless\",\"settings\":{\"vnext\":[{\"address\":\"62.60.148.122\",\"port\":443,\"users\":[{\"id\":\"a19b0581-6edf-407d-9dc9-3807d4f4425b\",\"flow\":\"xtls-rprx-vision\",\"encryption\":\"none\"}]}]},\"streamSettings\":{\"network\":\"xhttp\",\"security\":\"reality\",\"realitySettings\":{\"serverName\":\"www.amazon.com\",\"publicKey\":\"i1hQQ1DCQGQ6wswYO1X9eOhGncX2i5IRZ1h-dW23cFE\",\"shortId\":\"19804ea488ef93\"}}}]}";
 
                 File configFile = new File(getFilesDir(), "config.json");
                 FileOutputStream fos = new FileOutputStream(configFile);
                 fos.write(config.getBytes());
                 fos.close();
 
-                // Запускаем XRay
-                ProcessBuilder pb = new ProcessBuilder(xrayFile.getAbsolutePath(), "-c", configFile.getAbsolutePath());
-                pb.environment().put("HOME", getFilesDir().getAbsolutePath());
-                pb.start();
+                ProcessBuilder pb = new ProcessBuilder(xrayPath, "-c", configFile.getAbsolutePath());
+                pb.redirectErrorStream(true);
+                xrayProcess = pb.start();
+                Log.d(TAG, "XRay started");
+                Thread.sleep(5000);
+                Log.d(TAG, "XRay alive: " + xrayProcess.isAlive());
 
-                Thread.sleep(500);
+                Builder b = new Builder();
+                b.setSession("SecureVPN");
+                b.addAddress("10.0.0.2", 32);
+                b.addAddress("fd00::2", 128);
+                b.addRoute("0.0.0.0", 0);
+                b.addRoute("::", 0);
+                b.addRoute("10.0.0.0", 8);
+                b.addRoute("172.16.0.0", 12);
+                b.addRoute("192.168.0.0", 16);
+                b.addDnsServer("8.8.8.8");
+                b.addDnsServer("1.1.1.1");
+                b.addDisallowedApplication(getPackageName());
+                b.setMtu(1500);
+                b.setBlocking(false);
+                tun = b.establish();
+                Log.d(TAG, "Tunnel OK");
 
-                // Создаём VPN-туннель
-                Builder builder = new Builder();
-                builder.setSession("SecureVPN");
-                builder.addAddress("10.0.0.2", 32);
-                builder.addRoute("0.0.0.0", 0);
-                builder.addDnsServer("1.1.1.1");
-                tunInterface = builder.establish();
-
-                Log.d(TAG, "VPN tunnel established with XRay");
             } catch (Exception e) {
-                Log.e(TAG, "VPN error", e);
+                Log.e(TAG, "Error: " + e.getMessage());
+                stopSelf();
             }
-        });
-        vpnThread.start();
+        }).start();
+
+        return START_STICKY;
     }
 
     public void onDestroy() {
         super.onDestroy();
-        try {
-            if (tunInterface != null) tunInterface.close();
-        } catch (Exception e) {}
-    }
-
-    private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID, "VPN Status", NotificationManager.IMPORTANCE_LOW);
-            getSystemService(NotificationManager.class).createNotificationChannel(channel);
-        }
+        if (tun != null) try { tun.close(); } catch (Exception e) {}
+        if (xrayProcess != null) xrayProcess.destroy();
+        Log.d(TAG, "VPN destroyed");
+        stopForeground(true);
+        stopSelf();
     }
 }

@@ -23,9 +23,9 @@ public class MainActivity extends BridgeActivity {
             if (resultCode == Activity.RESULT_OK) {
                 Intent intent = new Intent(this, SecureVpnService.class);
                 startService(intent);
-                bridge.getWebView().evaluateJavascript("window._vpnCallback('connected')", null);
+                bridge.getWebView().evaluateJavascript("if(window._vpnCallback)window._vpnCallback('connected')", null);
             } else {
-                bridge.getWebView().evaluateJavascript("window._vpnCallback('denied')", null);
+                bridge.getWebView().evaluateJavascript("if(window._vpnCallback)window._vpnCallback('denied')", null);
             }
         }
     }
@@ -39,14 +39,13 @@ public class MainActivity extends BridgeActivity {
             } else {
                 Intent vpnIntent = new Intent(MainActivity.this, SecureVpnService.class);
                 startService(vpnIntent);
-                bridge.getWebView().evaluateJavascript("window._vpnCallback('connected')", null);
+                bridge.getWebView().evaluateJavascript("if(window._vpnCallback)window._vpnCallback('connected')", null);
             }
         }
 
         @JavascriptInterface
         public void disconnect() {
-            Intent intent = new Intent(MainActivity.this, SecureVpnService.class);
-            stopService(intent);
+            stopService(new Intent(MainActivity.this, SecureVpnService.class));
         }
     }
 
